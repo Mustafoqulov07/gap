@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background: #f6f8f7;
+  color: #0f172a;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.toast-in {
+  animation: toast-in 180ms ease-out;
+}
+
+@keyframes orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.orbit {
+  animation: orbit 40s linear infinite;
+}
+
+.orbit-reverse {
+  animation: orbit 40s linear infinite reverse;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orbit,
+  .orbit-reverse,
+  .toast-in {
+    animation: none;
+  }
+}
