@@ -22,7 +22,11 @@ export const viewport: Viewport = {
   themeColor: "#059669",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="uz" className={`${jakarta.variable} h-full antialiased`}>
       <body className="min-h-full font-sans">

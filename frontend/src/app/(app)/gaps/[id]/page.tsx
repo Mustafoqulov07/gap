@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CalendarRange,
+  CheckCircle,
   Coins,
   Crown,
   Dices,
@@ -35,7 +36,7 @@ import { useAuth } from "@/lib/auth";
 import { api, ApiError } from "@/lib/api";
 import { useApi } from "@/lib/use-api";
 import { formatDate, formatMoney, formatPhone, maskPhone } from "@/lib/format";
-import type { Gap, GapMember, Round } from "@/lib/types";
+import type { Gap, GapMember, Payment, Round } from "@/lib/types";
 
 type Confirm =
   | { kind: "start" }
@@ -45,7 +46,7 @@ type Confirm =
   | { kind: "pay"; round: Round }
   | null;
 
-export default function GapDetailPage({ params }: PageProps<"/gaps/[id]">) {
+export default function GapDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const toast = useToast();
@@ -54,6 +55,10 @@ export default function GapDetailPage({ params }: PageProps<"/gaps/[id]">) {
   const gap = gapQ.data;
   const roundsQ = useApi<Round[]>(gap && gap.duration > 0 ? `/round/gap/${id}` : null);
   const rounds = gap && gap.duration > 0 ? (roundsQ.data ?? []) : [];
+
+  const current = rounds.find((r) => r.status === "ACTIVE");
+  const paymentsQ = useApi<Payment[]>(current ? `/payments/round/${current.id}` : null);
+  const payments = current ? (paymentsQ.data ?? []) : [];
 
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -79,11 +84,12 @@ export default function GapDetailPage({ params }: PageProps<"/gaps/[id]">) {
   const editable = gap.status === "ACTIVE";
   const phase = gapPhase(gap);
   const pot = gap.monthlyAmount * (started ? gap.duration : members.length);
-  const current = rounds.find((r) => r.status === "ACTIVE");
   const myRound = rounds.find((r) => r.receiverId === user.id);
+
   const reloadAll = () => {
     gapQ.reload();
     roundsQ.reload();
+    paymentsQ.reload();
   };
 
   async function act(fn: () => Promise<void>) {
@@ -93,6 +99,19 @@ export default function GapDetailPage({ params }: PageProps<"/gaps/[id]">) {
       setConfirm(null);
     } catch (err) {
       toast(err instanceof ApiError ? err.message : "Amalni bajarib bo‘lmadi", "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmPayment(paymentId: number) {
+    setBusy(true);
+    try {
+      await api.patch(`/payments/${paymentId}/pay`);
+      toast("To‘lov tasdiqlandi!");
+      reloadAll();
+    } catch (err) {
+      toast(err instanceof ApiError ? err.message : "To‘lovni tasdiqlab bo‘lmadi", "error");
     } finally {
       setBusy(false);
     }
@@ -131,8 +150,9 @@ export default function GapDetailPage({ params }: PageProps<"/gaps/[id]">) {
         });
       case "pay":
         return act(async () => {
-          await api.post("/payments", { roundId: confirm.round.id, amount: gap.monthlyAmount });
-          toast("To‘lov qayd etildi");
+          await api.post("/payments", { roundId: confirm.round.id });
+          toast("To‘lov yuborildi, pul oluvchi tasdiqlashini kuting");
+          reloadAll();
         });
     }
   };
@@ -227,6 +247,90 @@ export default function GapDetailPage({ params }: PageProps<"/gaps/[id]">) {
             </p>
           )}
         </div>
+      )}
+
+      {/* Joriy raund to'lovlari (badallar) ro'yxati va tasdiqlash */}
+      {current && (
+        <Card className="mt-6 p-5">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <div>
+              <h3 className="font-bold text-slate-900">
+                {current.roundNumber}-oy badallari ({payments.filter((p) => p.status === "PAID").length} / {payments.length} to‘landi)
+              </h3>
+              <p className="text-xs text-slate-500">
+                {current.receiverId === user.id
+                  ? "Siz bu oy pul oluvchisiz. A‘zolardan pulni olgach, tasdiqlash tugmasini bosing."
+                  : `Ushbu oy pul oluvchi: ${current.receiver?.fullName ?? "—"}`}
+              </p>
+            </div>
+            {current.receiverId !== user.id && (
+              (() => {
+                const myPayment = payments.find((p) => p.userId === user.id);
+                if (myPayment?.status === "PAID") {
+                  return <Badge tone="green">Siz to‘lagansiz (Tasdiqlangan)</Badge>;
+                }
+                return (
+                  <Button size="sm" variant="gold" onClick={() => setConfirm({ kind: "pay", round: current })}>
+                    <Wallet className="size-4" /> {formatMoney(gap.monthlyAmount)} to‘lash
+                  </Button>
+                );
+              })()
+            )}
+          </div>
+
+          {paymentsQ.loading ? (
+            <PageLoader />
+          ) : payments.length === 0 ? (
+            <p className="py-4 text-center text-sm text-slate-400">To‘lov ma‘lumotlari yuklanmoqda...</p>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {payments.map((p) => {
+                const memberUser = p.user ?? members.find((m) => m.userId === p.userId)?.user;
+                const isPaid = p.status === "PAID";
+                const isReceiver = current.receiverId === user.id;
+
+                return (
+                  <div key={p.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                    <div className="flex items-center gap-3">
+                      <Avatar name={memberUser?.fullName} src={memberUser?.avatar} seed={p.userId} size={36} />
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">
+                          {memberUser?.fullName ?? `Foydalanuvchi #${p.userId}`}
+                          {p.userId === user.id && <span className="ml-1.5 text-xs text-emerald-600 font-medium">(siz)</span>}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {formatMoney(p.amount)} {p.paidAt && `· ${formatDate(p.paidAt, false)} da`}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {isPaid ? (
+                        <Badge tone="green">
+                          <CheckCircle className="size-3.5 inline mr-1" /> To‘landi
+                        </Badge>
+                      ) : (
+                        <>
+                          <Badge tone="amber">Kutilmoqda</Badge>
+                          {isReceiver && (
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              loading={busy}
+                              onClick={() => confirmPayment(p.id)}
+                            >
+                              Tasdiqlash
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
       )}
 
       {/* Boshlash bo'yicha ko'rsatma */}

@@ -30,7 +30,8 @@ export class File {
         });
       });
 
-      return `${env.BASE_URL}/${fileName}`;
+      const cleanBaseUrl = env.BASE_URL.replace(/\/+$/, '').replace(/\/api\/v1\/uploads\/?$/, '');
+      return `${cleanBaseUrl}/api/v1/uploads/${fileName}`;
     } catch (error) {
       throw new BadRequestException('Fayl yuklashda muammo');
     }
@@ -38,13 +39,13 @@ export class File {
 
   static async delete(fileName: string): Promise<void> {
     try {
-      const file = fileName.split(`${env.BASE_URL}/`)[1];
+      const file = fileName.split('/').pop();
       if (!file) {
         throw new BadRequestException('Fayl topilmadi');
       }
       const fileUrl = join(File.filePath, file);
       if (!existsSync(fileUrl)) {
-        throw new BadRequestException('Fayl topilmadi');
+        return;
       }
       await new Promise<void>((res, rej) => {
         unlink(fileUrl, (err: any) => {
@@ -63,13 +64,13 @@ export class File {
 
   static async exist(fileName: string): Promise<boolean> {
     try {
-      const file = fileName.split(`${env.BASE_URL}/`)[1];
+      const file = fileName.split('/').pop();
       if (!file) {
         return false;
       }
       const fileUrl = join(File.filePath, file);
 
-      return existsSync(fileUrl) ? true : false;
+      return existsSync(fileUrl);
     } catch {
       throw new BadRequestException('Faylni tekshirishda muammo');
     }

@@ -39,7 +39,7 @@ export class RoundService {
     }
 
     const existingRound = await this.db.round.count({
-      where: { id: gapId },
+      where: { gapId },
     });
 
     if (existingRound > 0) {

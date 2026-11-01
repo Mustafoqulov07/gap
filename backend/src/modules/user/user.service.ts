@@ -25,6 +25,7 @@ export class UserService {
         phone: true,
         avatar: true,
         role: true,
+        status: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -45,7 +46,9 @@ export class UserService {
         phone: true,
         avatar: true,
         role: true,
+        status: true,
         createdAt: true,
+        updatedAt: true,
       },
     });
 
@@ -94,9 +97,7 @@ export class UserService {
       omit: { password: true },
     });
 
-    return successRes({
-      data: update,
-    });
+    return successRes(update);
   }
 
   async remove(id: number, currentUserId: number, res: Response) {

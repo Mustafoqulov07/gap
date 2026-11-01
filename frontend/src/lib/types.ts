@@ -72,5 +72,7 @@ export interface Payment {
   userId: number;
   amount: number;
   status: "PENDING" | "PAID";
+  paidAt?: string | null;
   createdAt: string;
+  user?: PublicUser;
 }

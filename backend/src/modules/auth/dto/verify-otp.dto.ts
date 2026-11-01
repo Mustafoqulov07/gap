@@ -1,6 +1,7 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsNotEmpty,
+  IsOptional,
   IsPhoneNumber,
   IsString,
   Matches,
@@ -25,11 +26,11 @@ export class VerifyOtpDto {
   })
   code!: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 'newPassword123',
   })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MinLength(6)
-  newPassword!: string;
+  newPassword?: string;
 }

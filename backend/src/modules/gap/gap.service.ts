@@ -210,8 +210,8 @@ export class GapService {
       throw new BadRequestException('Boshlangan gapda maxMembers va monthlyAmountni ozgartirib bolmaydi')
     }
 
-    if (dto.maxMembers !== undefined && dto.maxMembers < 0) {
-      throw new BadRequestException('maxMemebers kamida 2 bolishi kerak')
+    if (dto.maxMembers !== undefined && dto.maxMembers < 2) {
+      throw new BadRequestException('maxMembers kamida 2 bolishi kerak');
     }
 
     if (dto.maxMembers !== undefined) {

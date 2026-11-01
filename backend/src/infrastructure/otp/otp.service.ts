@@ -7,10 +7,14 @@ import {
 import { createHmac, randomInt } from 'crypto';
 import { RedisService } from '../../config/redis/redis.service';
 import { env } from '../../config';
+import { TelegramBotService } from '../bot/bot.service';
 
 @Injectable()
 export class OtpService {
-  constructor(private readonly redisService: RedisService) { }
+  constructor(
+    private readonly redisService: RedisService,
+    private readonly botService: TelegramBotService,
+  ) { }
 
   private normalizePhone(value: string): string {
     const phone = value.replace(/\D/g, '');
@@ -92,6 +96,9 @@ export class OtpService {
       await redis.del(otpKey, attemptsKey, resendKey);
       throw error;
     }
+
+    // Bot orqali shaxsiy xabar yuborish (va start bosgan bo'lmasa start bosganda olishi uchun Redisga saqlash)
+    void this.botService.sendOtp(phone, code, env.OTP.TTL);
 
     return {
       code,

@@ -9,6 +9,7 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 import { GapModule } from './modules/gap/gap.module';
 import { RoundModule } from './modules/round/round.module';
 import { PaymentModule } from './modules/payment/payment.module';
+import { TelegramBotModule } from './infrastructure/bot/bot.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { PaymentModule } from './modules/payment/payment.module';
     GapModule,
     RoundModule,
     PaymentModule,
+    TelegramBotModule,
   ],
   providers: [
     {

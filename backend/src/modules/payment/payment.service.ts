@@ -260,23 +260,25 @@ export class PaymentService {
       throw new ForbiddenException('Bu rounddagi paymentlarni korishga ruxsat yoq');
     }
 
-    // Auto-ensure PENDING payment records exist for all non-receiver members of the round
-    const nonReceiverMembers = round.gap.members.filter((m) => m.userId !== round.receiverId);
+    // Auto-ensure PENDING payment records exist for all non-receiver members when round is ACTIVE
+    if (round.status === RoundStatus.ACTIVE) {
+      const nonReceiverMembers = round.gap.members.filter((m) => m.userId !== round.receiverId);
 
-    for (const member of nonReceiverMembers) {
-      const existing = await this.prisma.payment.findUnique({
-        where: { roundId_userId: { roundId, userId: member.userId } },
-      });
-
-      if (!existing) {
-        await this.prisma.payment.create({
-          data: {
-            roundId,
-            userId: member.userId,
-            amount: round.gap.monthlyAmount,
-            status: PaymentStatus.PENDING,
-          },
+      for (const member of nonReceiverMembers) {
+        const existing = await this.prisma.payment.findUnique({
+          where: { roundId_userId: { roundId, userId: member.userId } },
         });
+
+        if (!existing) {
+          await this.prisma.payment.create({
+            data: {
+              roundId,
+              userId: member.userId,
+              amount: round.gap.monthlyAmount,
+              status: PaymentStatus.PENDING,
+            },
+          });
+        }
       }
     }
 

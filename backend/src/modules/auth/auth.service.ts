@@ -13,6 +13,8 @@ import type { Response, Request } from 'express';
 import { Token } from '../../infrastructure/lib/Token';
 import { getDeviceInfo } from '../../common/helper/device-info';
 import { OtpService } from '../../infrastructure/otp/otp.service';
+import { RedisService } from '../../config/redis/redis.service';
+import { randomUUID } from 'crypto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 
@@ -21,6 +23,7 @@ export class AuthService {
   constructor(
     private readonly db: PrismaService,
     private readonly otp: OtpService,
+    private readonly redis: RedisService,
   ) { }
 
   async register(dto: RegisterDto) {
@@ -206,15 +209,59 @@ export class AuthService {
       throw new BadRequestException('Foydalanuvchi topilmadi');
     }
 
-    const hashedPassword = await Crypt.hash(dto.newPassword);
+    if (dto.newPassword) {
+      const hashedPassword = await Crypt.hash(dto.newPassword);
+      await this.db.user.update({
+        where: { id: user.id },
+        data: {
+          password: hashedPassword,
+        },
+      });
 
-    await this.db.user.update({
-      where: { id: user.id },
-      data: {
-        password: hashedPassword,
-      },
+      return successRes(
+        { message: 'OTP tasdiqlandi va parol muvaffaqiyatli yangilandi' },
+        200,
+      );
+    }
+
+    const resetToken = randomUUID();
+    await this.redis.client.set(
+      `reset:token:${dto.phone}`,
+      resetToken,
+      'EX',
+      600,
+    );
+
+    return successRes({ resetToken }, 200);
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const { phone, resetToken, newPassword } = dto;
+
+    const storedToken = await this.redis.client.get(`reset:token:${phone}`);
+    if (!storedToken || storedToken !== resetToken) {
+      throw new BadRequestException('Tasdiqlash tokeni xato yoki muddati tugagan');
+    }
+
+    const user = await this.db.user.findUnique({
+      where: { phone },
     });
 
-    return successRes({message: 'OTP tasdiqlandi va parol muvaffaqiyatli yangilandi'}, 200,);
+    if (!user) {
+      throw new BadRequestException('Foydalanuvchi topilmadi');
+    }
+
+    const hashedPassword = await Crypt.hash(newPassword);
+    await this.db.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
+    });
+
+    await this.redis.client.del(`reset:token:${phone}`);
+
+    return successRes(
+      { message: 'Parol muvaffaqiyatli yangilandi' },
+      200,
+    );
   }
 }
