@@ -3,7 +3,7 @@ name: CI/CD Deployment
 on:
   push:
     branches:
-      - main  # main tarmog'iga push qilinganda ishga tushadi
+      - main
 
 jobs:
   deploy:
@@ -13,8 +13,32 @@ jobs:
       - name: Kodni yuklab olish
         uses: actions/checkout@v4
 
-      # --- 1. BACKEND DEPLOYMENT & DATABASE MIGRATE ---
-      - name: Serverga ulanish va Backend-ni yangilash
+      - name: Node.js muhitini sozlash
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: pnpm o'rnatish
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      # --- 1. BACKEND VA FRONTEND NI LOKAL BUILD QILISH (GITHUB RUNNER-DA) ---
+      - name: Backend dependencies va Build
+        run: |
+          cd backend
+          pnpm install
+          pnpm run build
+
+      - name: Frontend dependencies va Build
+        run: |
+          cd frontend
+          pnpm install
+          pnpm run build
+
+      # --- 2. TAYYOR FAYLLARNI SERVERGA YUBORISH VA MIGRATSIYA ---
+      - name: Build qilingan fayllarni serverga yuborish va PM2 ni yangilash
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -26,39 +50,19 @@ jobs:
             cd /root/imthon_5/gap
             git pull origin main
             
+            # Backend dependencies production uchun
             cd backend
-            pnpm install --frozen-lockfile || pnpm install
+            pnpm install --prod
             
-            # Prisma .env ichidagi DB_URL ni o'qishi uchun vaqtincha export qilamiz
+            # Prisma migratsiya
             export DATABASE_URL="postgresql://postgres:1234@localhost:5432/gap"
-            
             pnpm exec prisma generate
             pnpm exec prisma migrate deploy
             
-            pnpm run build
-            
-            # PM2 orqali ilovani qayta ishga tushirish
+            # PM2 ni qayta ishga tushirish
             pm2 restart backend-api --update-env || pm2 start dist/main.js --name "backend-api"
 
-      # --- 2. FRONTEND BUILD & DEPLOYMENT ---
-      - name: Node.js muhitini sozlash (Frontend uchun)
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-
-      - name: pnpm o'rnatish
-        uses: pnpm/action-setup@v3
-        with:
-          version: 8
-
-      - name: Frontend-ni lokal build qilish
-        run: |
-          cd frontend
-          pnpm install
-          pnpm run build
-
-      - name: Build bo'lgan fayllarni serverga yuborish (SCP)
+      - name: Frontend static fayllarini serverga yuborish (SCP)
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
