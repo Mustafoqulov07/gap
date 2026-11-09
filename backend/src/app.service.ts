@@ -46,7 +46,7 @@ export class App {
       SwaggerModule.setup(`${url}/docs`, app, document);
     }
     await app.listen(env.PORT, () =>
-      console.log(`Server running on port`, env.PORT),
+      console.log(`Server running on PORT:`, env.PORT),
     );
   }
 }
