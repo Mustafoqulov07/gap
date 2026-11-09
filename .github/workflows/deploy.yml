@@ -3,7 +3,7 @@ name: CI/CD Deployment
 on:
   push:
     branches:
-      - main  # main tarmog'iga push bo'lganda ishga tushadi
+      - main
 
 jobs:
   deploy:
@@ -22,14 +22,14 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SERVER_PORT }}
           script: |
-            cd /var/www/my-project
+            cd /root/imthon_5/gap
             git pull origin main
             
             cd backend
             pnpm install
             pnpm run build
-            pnpm exec prisma migrate deploy # Prisma ishlatilsa
-            pm2 restart backend-api
+            pnpm exec prisma migrate deploy
+            pm2 restart backend-api || pm2 start dist/main.js --name "backend-api"
 
       # --- 2. FRONTEND BUILD VA DEPLOYMENT ---
       - name: Node.js muhitini sozlash
@@ -56,6 +56,6 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SERVER_PORT }}
-          source: "frontend/dist/*"   # Vite uchun 'frontend/dist/*', React CRA bo'lsa 'frontend/build/*'
-          target: "/var/www/my-project/frontend/dist"
+          source: "frontend/dist/*"
+          target: "/root/imthon_5/gap/frontend/dist"
           strip_components: 2
