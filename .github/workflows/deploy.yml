@@ -13,16 +13,18 @@ jobs:
       - name: Kodni yuklab olish
         uses: actions/checkout@v4
 
+      # 1. Avval pnpm o'rnatiladi (cache ishlashi uchun)
+      - name: pnpm o'rnatish
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      # 2. Keyin Node.js va pnpm cache sozlanadi
       - name: Node.js muhitini sozlash
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'pnpm'
-
-      - name: pnpm o'rnatish
-        uses: pnpm/action-setup@v3
-        with:
-          version: 8
 
       # --- 1. BACKEND VA FRONTEND NI LOKAL BUILD QILISH (GITHUB RUNNER-DA) ---
       - name: Backend dependencies va Build
