@@ -1,4 +1,4 @@
-name: CI/CD Deployment
+name: CI/CD Deployment (npm)
 
 on:
   push:
@@ -13,33 +13,25 @@ jobs:
       - name: Kodni yuklab olish
         uses: actions/checkout@v4
 
-      # 1. Avval pnpm o'rnatiladi (cache ishlashi uchun)
-      - name: pnpm o'rnatish
-        uses: pnpm/action-setup@v3
-        with:
-          version: 8
-
-      # 2. Keyin Node.js va pnpm cache sozlanadi
       - name: Node.js muhitini sozlash
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
 
-      # --- 1. BACKEND VA FRONTEND NI LOKAL BUILD QILISH (GITHUB RUNNER-DA) ---
+      # --- 1. BACKEND VA FRONTEND NI GITHUB RUNNER-DA BUILD QILISH ---
       - name: Backend dependencies va Build
         run: |
           cd backend
-          pnpm install
-          pnpm run build
+          npm install
+          npm run build
 
       - name: Frontend dependencies va Build
         run: |
           cd frontend
-          pnpm install
-          pnpm run build
+          npm install
+          npm run build
 
-      # --- 2. TAYYOR FAYLLARNI SERVERGA YUBORISH VA MIGRATSIYA ---
+      # --- 2. TAYYOR FAYLLARni SERVERGA YUBORISH VA MIGRATSIYA ---
       - name: Build qilingan fayllarni serverga yuborish va PM2 ni yangilash
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -54,12 +46,12 @@ jobs:
             
             # Backend dependencies production uchun
             cd backend
-            pnpm install --prod
+            npm install --production
             
             # Prisma migratsiya
             export DATABASE_URL="postgresql://postgres:1234@localhost:5432/gap"
-            pnpm exec prisma generate
-            pnpm exec prisma migrate deploy
+            npx prisma generate
+            npx prisma migrate deploy
             
             # PM2 ni qayta ishga tushirish
             pm2 restart backend-api --update-env || pm2 start dist/main.js --name "backend-api"
