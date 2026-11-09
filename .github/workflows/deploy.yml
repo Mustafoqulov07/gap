@@ -21,14 +21,18 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SERVER_PORT }}
+          script_stop: true # Xatolik chiqsa, to'xtatish uchun
           script: |
             cd /root/imthon_5/gap
             git pull origin main
             
             cd backend
-            pnpm install
+            # pnpm ni tezroq va muammosiz o'rnatish uchun
+            pnpm install --frozen-lockfile || pnpm install
             pnpm run build
             pnpm exec prisma migrate deploy
+            
+            # PM2 orqali ishga tushirish (agar allaqachon ishlayotgan bo'lsa restart, yo'qsa start)
             pm2 restart backend-api || pm2 start dist/main.js --name "backend-api"
 
       # --- 2. FRONTEND BUILD VA DEPLOYMENT ---
