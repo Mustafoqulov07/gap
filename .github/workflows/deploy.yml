@@ -13,38 +13,32 @@ jobs:
       - name: Kodni yuklab olish
         uses: actions/checkout@v4
 
-      - name: Node.js muhitini sozlash
+      # Faqat Frontend-ni GitHub runner-da build qilamiz (chunki u yengil va tez)
+      - name: Node.js muhitini sozlash (Frontend uchun)
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # --- 1. BACKEND VA FRONTEND NI GITHUB RUNNER-DA BUILD QILISH ---
-      - name: Backend dependencies va Build
-        run: |
-          cd backend
-          npm install
-          npm run build
-
-      - name: Frontend dependencies va Build
+      - name: Frontend build qilish
         run: |
           cd frontend
           npm install
           npm run build
 
-      # --- 2. BACKEND DIST FAYLLARINI SERVERGA YUBORISH (SCP) ---
-      - name: Backend build fayllarini serverga yuborish
+      # Frontend static fayllarini serverga yuborish (SCP)
+      - name: Frontend static fayllarini serverga yuborish
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SERVER_PORT }}
-          source: "backend/dist/*"
-          target: "/root/imthon_5/gap/backend/dist"
+          source: "frontend/dist/*"
+          target: "/root/imthon_5/gap/frontend/dist"
           strip_components: 2
 
-      # --- 3. SERVERDA GIT PULL, MIGRATSIYA VA PM2 ISHGA TUSHIRISH ---
-      - name: Serverda kodni yangilash, migratsiya va PM2
+      # Serverga ulanib Backend-ni yangilash, RAM limitini berib build qilish va PM2 ni ishga tushirish
+      - name: Serverda Backend build, migratsiya va PM2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -57,22 +51,14 @@ jobs:
             git pull origin main
             
             cd backend
-            npm install --production
+            npm install
+            
+            # Server RAM yetishmay qolmasligi uchun maxsus limit beramiz
+            export NODE_OPTIONS="--max-old-space-size=512"
+            npm run build
             
             export DATABASE_URL="postgresql://postgres:1234@localhost:5432/gap"
             npx prisma generate
             npx prisma migrate deploy
             
             pm2 restart backend-api --update-env || pm2 start dist/src/main.js --name "backend-api"
-
-      # --- 4. FRONTEND STATIC FAYLLARNI SERVERGA YUBORISH (SCP) ---
-      - name: Frontend static fayllarini serverga yuborish (SCP)
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SERVER_PORT }}
-          source: "frontend/dist/*"
-          target: "/root/imthon_5/gap/frontend/dist"
-          strip_components: 2
