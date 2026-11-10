@@ -13,33 +13,8 @@ jobs:
       - name: Kodni yuklab olish
         uses: actions/checkout@v4
 
-      - name: Node.js muhitini sozlash (Frontend uchun)
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Frontend build qilish
-        run: |
-          cd frontend
-          npm install
-          npm run build
-          # Build qilingan papkani tekshirish uchun
-          ls -la dist || ls -la build
-
-      # Frontend static fayllarini serverga yuborish (SCP) - aniq papka ko'rsatildi
-      - name: Frontend static fayllarini serverga yuborish
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SERVER_PORT }}
-          source: "frontend/dist"
-          target: "/root/imthon_5/gap/frontend"
-          strip_components: 1
-
-      # Serverga ulanib Backend-ni yangilash, build qilish va PM2 ni ishga tushirish
-      - name: Serverda Backend build, migratsiya va PM2
+      # Serverga ulanib hammasini to'g'ridan-to'g'ri serverda bajaramiz
+      - name: Serverda kodni yangilash, build qilish va PM2 orqali ishga tushirish
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -51,10 +26,10 @@ jobs:
             cd /root/imthon_5/gap
             git pull origin main
             
+            # --- 1. BACKEND DEPLOYMENT ---
             cd backend
             npm install
             
-            # Server RAM yetishmay qolmasligi uchun maxsus limit beramiz
             export NODE_OPTIONS="--max-old-space-size=512"
             npm run build
             
@@ -63,3 +38,11 @@ jobs:
             npx prisma migrate deploy
             
             pm2 restart backend-api --update-env || pm2 start dist/src/main.js --name "backend-api"
+            
+            # --- 2. FRONTEND DEPLOYMENT ---
+            cd ../frontend
+            npm install
+            npm run build
+            
+            # Frontend Next.js bo'lgani uchun PM2 orqali start beramiz (portlari to'qnashmasligi uchun 3000 yoki boshqa portda)
+            pm2 restart frontend-app --update-env || pm2 start npm --name "frontend-app" -- start -- -p 3000
