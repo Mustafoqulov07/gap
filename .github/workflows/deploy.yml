@@ -13,7 +13,6 @@ jobs:
       - name: Kodni yuklab olish
         uses: actions/checkout@v4
 
-      # Faqat Frontend-ni GitHub runner-da build qilamiz (chunki u yengil va tez)
       - name: Node.js muhitini sozlash (Frontend uchun)
         uses: actions/setup-node@v4
         with:
@@ -24,8 +23,10 @@ jobs:
           cd frontend
           npm install
           npm run build
+          # Build qilingan papkani tekshirish uchun
+          ls -la dist || ls -la build
 
-      # Frontend static fayllarini serverga yuborish (SCP)
+      # Frontend static fayllarini serverga yuborish (SCP) - aniq papka ko'rsatildi
       - name: Frontend static fayllarini serverga yuborish
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -33,11 +34,11 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SERVER_PORT }}
-          source: "frontend/dist/*"
-          target: "/root/imthon_5/gap/frontend/dist"
-          strip_components: 2
+          source: "frontend/dist"
+          target: "/root/imthon_5/gap/frontend"
+          strip_components: 1
 
-      # Serverga ulanib Backend-ni yangilash, RAM limitini berib build qilish va PM2 ni ishga tushirish
+      # Serverga ulanib Backend-ni yangilash, build qilish va PM2 ni ishga tushirish
       - name: Serverda Backend build, migratsiya va PM2
         uses: appleboy/ssh-action@v1.0.3
         with:
